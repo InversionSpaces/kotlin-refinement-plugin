@@ -1,5 +1,6 @@
 package com.example.refinement
 
+import com.example.refinement.RefinementDiagnostics.CONTAINING_DECLARATION
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.error0
@@ -22,18 +23,15 @@ class FirRefinementAdditionalCheckersExtension(session: FirSession): FirAddition
     }
 
     companion object {
-        fun getFactory(): Factory = Factory { session -> FirRefinementAdditionalCheckersExtension(session) }
-
         val callChecker: FirCallChecker = object : FirCallChecker(MppCheckerKind.Common) {
             override fun check(
                 expression: FirCall,
                 context: CheckerContext,
                 reporter: DiagnosticReporter
             ) {
-                reporter.reportOn(expression.source, TEST_ERROR, context)
+                val declaration = context.containingDeclarations.last()
+                reporter.reportOn(expression.source, CONTAINING_DECLARATION, declaration.symbol, context)
             }
         }
-
-        val TEST_ERROR by warning0<PsiElement>()
     }
 }
