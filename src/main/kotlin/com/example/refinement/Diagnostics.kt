@@ -1,8 +1,11 @@
 package com.example.refinement
 
 import com.example.refinement.RefinementDiagnostics.CFG_GRAPH
+import com.example.refinement.RefinementDiagnostics.CONSTRUCTOR_CALL
 import com.example.refinement.RefinementDiagnostics.CONTAINING_DECLARATION
+import com.example.refinement.RefinementDiagnostics.DECLARATION_FOUND
 import com.example.refinement.RefinementDiagnostics.NO_CONTAINING_DECLARATION
+import com.example.refinement.RefinementDiagnostics.ANNOTATED_CLASS
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactoryToRendererMap
 import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
@@ -16,6 +19,9 @@ import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 object RefinementDiagnostics {
     val CONTAINING_DECLARATION by warning1<PsiElement, FirBasedSymbol<*>>()
     val NO_CONTAINING_DECLARATION by warning0<PsiElement>()
+    val CONSTRUCTOR_CALL by warning0<PsiElement>()
+    val DECLARATION_FOUND by warning0<PsiElement>()
+    val ANNOTATED_CLASS by warning1<PsiElement, String>()
 
     val CFG_GRAPH by warning1<PsiElement, String>()
 
@@ -29,6 +35,9 @@ object RefinementDiagnosticRender : BaseDiagnosticRendererFactory() {
         get() = KtDiagnosticFactoryToRendererMap("Refinement").apply {
             put(CONTAINING_DECLARATION, "Containing declaration: {0}", FirDiagnosticRenderers.DECLARATION_NAME)
             put(NO_CONTAINING_DECLARATION, "No containing declaration found")
+            put(CONSTRUCTOR_CALL, "Constructor call")
+            put(DECLARATION_FOUND, "Declaration found")
+            put(ANNOTATED_CLASS, "Annotated: {0}", CommonRenderers.STRING)
             put(CFG_GRAPH, "CFG graph: {0}", CommonRenderers.STRING)
         }
 }

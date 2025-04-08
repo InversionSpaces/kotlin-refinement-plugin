@@ -38,7 +38,7 @@ class RefinementPluginOptions: CommandLineProcessor {
             optionName = "refinementAnnotations",
             valueDescription = "<fqname>",
             description = "fully qualified names of refinement annotations",
-            required = false,
+            required = true,
             allowMultipleOccurrences = true,
         )
     }
@@ -51,7 +51,7 @@ class RefinementCompilerPluginRegistrar : CompilerPluginRegistrar() {
     override fun ExtensionStorage.registerExtensions(
         configuration: CompilerConfiguration
     ) {
-        val annotations = configuration.get(REFINEMENT_ANNOTATIONS).orEmpty()
+        val annotations = configuration.getNotNull(REFINEMENT_ANNOTATIONS)
         FirExtensionRegistrarAdapter.registerExtension(
             FirRefinementExtensionRegistrar(annotations)
         )

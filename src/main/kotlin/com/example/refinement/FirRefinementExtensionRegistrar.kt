@@ -6,9 +6,7 @@ class FirRefinementExtensionRegistrar(
     private val annotations: List<String>
 ) : FirExtensionRegistrar() {
     override fun ExtensionRegistrarContext.configurePlugin() {
-        if (annotations.isNotEmpty()) {
-            +RefinementPredicateMatcher.getFactory(annotations)
-        }
+        +RefinementPredicateMatcher.getFactory(annotations)
         +::FirRefinementAdditionalCheckersExtension
     }
 }
