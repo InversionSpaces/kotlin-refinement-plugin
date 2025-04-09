@@ -1,13 +1,14 @@
 package com.example.refinement
 
-import com.example.refinement.RefinementDiagnostics.CFG_GRAPH
-import com.example.refinement.RefinementDiagnostics.CONSTRUCTOR_CALL
-import com.example.refinement.RefinementDiagnostics.CONTAINING_DECLARATION
-import com.example.refinement.RefinementDiagnostics.DECLARATION_FOUND
-import com.example.refinement.RefinementDiagnostics.NO_CONTAINING_DECLARATION
-import com.example.refinement.RefinementDiagnostics.ANNOTATED_CLASS
+import com.example.refinement.RefinementDiagnostics.ONLY_PRIMARY_CONSTRUCTORS_SUPPORTED
+import com.example.refinement.RefinementDiagnostics.ONLY_VALUE_CLASSES_ARE_SUPPORTED
+import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_MULTIPLE_REQUIRE_CALLS
+import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_PREDICATE
+import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_TYPE
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactoryToRendererMap
+import org.jetbrains.kotlin.diagnostics.error0
+import org.jetbrains.kotlin.diagnostics.error1
 import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
 import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers
 import org.jetbrains.kotlin.diagnostics.rendering.RootDiagnosticRendererFactory
@@ -15,15 +16,14 @@ import org.jetbrains.kotlin.diagnostics.warning0
 import org.jetbrains.kotlin.diagnostics.warning1
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
+import org.jetbrains.kotlin.fir.types.ConeKotlinType
 
 object RefinementDiagnostics {
-    val CONTAINING_DECLARATION by warning1<PsiElement, FirBasedSymbol<*>>()
-    val NO_CONTAINING_DECLARATION by warning0<PsiElement>()
-    val CONSTRUCTOR_CALL by warning0<PsiElement>()
-    val DECLARATION_FOUND by warning0<PsiElement>()
-    val ANNOTATED_CLASS by warning1<PsiElement, String>()
-
-    val CFG_GRAPH by warning1<PsiElement, String>()
+    val ONLY_VALUE_CLASSES_ARE_SUPPORTED by error0<PsiElement>()
+    val ONLY_PRIMARY_CONSTRUCTORS_SUPPORTED by warning0<PsiElement>()
+    val UNSUPPORTED_TYPE by error1<PsiElement, ConeKotlinType>()
+    val UNSUPPORTED_MULTIPLE_REQUIRE_CALLS by error0<PsiElement>()
+    val UNSUPPORTED_PREDICATE by error0<PsiElement>()
 
     init {
         RootDiagnosticRendererFactory.registerFactory(RefinementDiagnosticRender)
@@ -33,11 +33,10 @@ object RefinementDiagnostics {
 object RefinementDiagnosticRender : BaseDiagnosticRendererFactory() {
     override val MAP: KtDiagnosticFactoryToRendererMap
         get() = KtDiagnosticFactoryToRendererMap("Refinement").apply {
-            put(CONTAINING_DECLARATION, "Containing declaration: {0}", FirDiagnosticRenderers.DECLARATION_NAME)
-            put(NO_CONTAINING_DECLARATION, "No containing declaration found")
-            put(CONSTRUCTOR_CALL, "Constructor call")
-            put(DECLARATION_FOUND, "Declaration found")
-            put(ANNOTATED_CLASS, "Annotated: {0}", CommonRenderers.STRING)
-            put(CFG_GRAPH, "CFG graph: {0}", CommonRenderers.STRING)
+            put(ONLY_VALUE_CLASSES_ARE_SUPPORTED, "Only value classes are supported")
+            put(ONLY_PRIMARY_CONSTRUCTORS_SUPPORTED, "Only primary constructors are supported")
+            put(UNSUPPORTED_TYPE, "Unsupported type: {0}", FirDiagnosticRenderers.RENDER_TYPE)
+            put(UNSUPPORTED_MULTIPLE_REQUIRE_CALLS, "Multiple `require` calls are not supported")
+            put(UNSUPPORTED_PREDICATE, "Unsupported predicate")
         }
 }
