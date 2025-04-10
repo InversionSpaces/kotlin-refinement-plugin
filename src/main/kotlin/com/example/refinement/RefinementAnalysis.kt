@@ -1,6 +1,6 @@
 package com.example.refinement
 
-import com.example.refinement.models.Interval
+import com.example.refinement.models.IntervalRefinement
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationDataKey
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationDataRegistry
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
@@ -12,9 +12,9 @@ object UnsupportedRefinement : RefinementClassInfo
 
 object NoRefinement : RefinementClassInfo
 
-class IntervalRefinement(
+class ParameterRefinement(
     val parameter: FirValueParameterSymbol,
-    val interval: Interval
+    val refinement: IntervalRefinement
 ) : RefinementClassInfo
 
 object RefinementDataKey : FirDeclarationDataKey()
