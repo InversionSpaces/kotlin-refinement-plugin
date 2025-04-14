@@ -1,6 +1,7 @@
 package com.example.refinement
 
 import com.example.refinement.RefinementDiagnostics.DEBUG_INFO
+import com.example.refinement.RefinementDiagnostics.FAILED_TO_DEDUCE_CORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_GET_UNDERLYING_VALUE
 import com.example.refinement.RefinementDiagnostics.ONLY_PRIMARY_CONSTRUCTORS_SUPPORTED
 import com.example.refinement.RefinementDiagnostics.ONLY_VALUE_CLASSES_ARE_SUPPORTED
@@ -45,6 +46,7 @@ object RefinementDiagnosticRender : BaseDiagnosticRendererFactory() {
             put(UNSUPPORTED_TYPE, "Unsupported type: {0}", FirDiagnosticRenderers.RENDER_TYPE)
             put(UNSUPPORTED_MULTIPLE_REQUIRE_CALLS, "Multiple `require` calls are not supported")
             put(UNSUPPORTED_PREDICATE, "Unsupported predicate")
+            put(FAILED_TO_DEDUCE_CORRECTNESS, "Failed to deduce correctness of constructor call")
 
             put(DEBUG_INFO, "DEBUG: {0}", CommonRenderers.STRING)
         }

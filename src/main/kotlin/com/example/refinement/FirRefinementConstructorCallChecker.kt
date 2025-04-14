@@ -8,6 +8,7 @@ import com.example.refinement.RefinementDiagnostics.ONLY_VALUE_CLASSES_ARE_SUPPO
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_MULTIPLE_REQUIRE_CALLS
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_PREDICATE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_TYPE
+import com.example.refinement.analysis.IntervalAnalysisVisitor
 import com.example.refinement.models.IntervalRefinement
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -17,7 +18,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.context.findClosest
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirFunctionCallChecker
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousInitializer
-import org.jetbrains.kotlin.fir.declarations.FirFunction
+import org.jetbrains.kotlin.fir.declarations.FirControlFlowGraphOwner
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.getConstructedClass
@@ -58,7 +59,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
         val right = expr.compareToCall.argument
 
         return when {
-            left.literalIntValue == 0L  && right.propertyAccessSymbol == property -> {
+            left.literalIntValue == 0L && right.propertyAccessSymbol == property -> {
                 when (expr.operation) {
                     FirOperation.EQ -> IntervalRefinement.ZERO
                     FirOperation.GT -> IntervalRefinement.NEGATIVE
@@ -66,6 +67,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
                     else -> unsupported()
                 }
             }
+
             right.literalIntValue == 0L && left.propertyAccessSymbol == property -> {
                 when (expr.operation) {
                     FirOperation.EQ -> IntervalRefinement.ZERO
@@ -74,6 +76,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
                     else -> unsupported()
                 }
             }
+
             else -> unsupported()
         }
     }
@@ -119,7 +122,8 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
             return UnsupportedRefinement
         }
 
-        val refinement = analyseExpr(property, reqs.single().argument, context, reporter) ?: return UnsupportedRefinement
+        val refinement =
+            analyseExpr(property, reqs.single().argument, context, reporter) ?: return UnsupportedRefinement
 
         return ParameterRefinement(parameter, refinement)
     }
@@ -147,14 +151,19 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
 
         if (info !is ParameterRefinement) return
 
-        val declaration = context.findClosest<FirFunction>() ?: run {
-            return reporter.reportOn(expression.source, FAILED_TO_DEDUCE_CORRECTNESS, context)
+        val failed = {
+            reporter.reportOn(expression.source, FAILED_TO_DEDUCE_CORRECTNESS, context)
         }
 
-        val cfg = declaration.controlFlowGraphReference?.controlFlowGraph ?: return
-        reporter.reportOn(declaration.source, DEBUG_INFO, cfg.render(), context)
+        val owner = context.findClosest<FirControlFlowGraphOwner>() ?: return failed()
 
-//        cfg.traverseToFixedPoint()
+        val cfg = owner.controlFlowGraphReference?.controlFlowGraph ?: return failed()
+
+        reporter.reportOn(owner.source, DEBUG_INFO, cfg.render(), context)
+
+        val infos = cfg.traverseToFixedPoint(
+            IntervalAnalysisVisitor()
+        )
     }
 
     val FirExpression.literalIntValue: Long?

@@ -17,7 +17,7 @@ class IntervalAnalysisVisitor : PathAwareControlFlowGraphVisitor<FirVariableSymb
         val builder = b.builder()
         for ((symbol, interval) in a) {
             builder.merge(symbol as FirVariableSymbol<*>, interval as IntervalLattice) {
-                l, r -> IntervalLattice.join(l, r)
+                    l, r -> IntervalLattice.join(l, r)
             }
         }
         return builder.build()
