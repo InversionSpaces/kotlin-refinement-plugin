@@ -9,6 +9,8 @@ import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_MULTIPLE_REQUIRE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_PREDICATE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_TYPE
 import com.example.refinement.analysis.IntervalAnalysisVisitor
+import com.example.refinement.fir.literalIntValue
+import com.example.refinement.fir.propertyAccessSymbol
 import com.example.refinement.models.IntervalRefinement
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -33,6 +35,7 @@ import org.jetbrains.kotlin.fir.expressions.argument
 import org.jetbrains.kotlin.fir.references.impl.FirPropertyFromParameterResolvedNamedReference
 import org.jetbrains.kotlin.fir.references.toResolvedSymbol
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.render
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.renderControlFlowGraph
 import org.jetbrains.kotlin.fir.resolve.dfa.controlFlowGraph
 import org.jetbrains.kotlin.fir.resolve.providers.firProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
@@ -155,20 +158,20 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
             reporter.reportOn(expression.source, FAILED_TO_DEDUCE_CORRECTNESS, context)
         }
 
-        val owner = context.findClosest<FirControlFlowGraphOwner>() ?: return failed()
+        val cfg = context.findClosest<FirControlFlowGraphOwner> {
+            it.controlFlowGraphReference?.controlFlowGraph != null
+        }?.controlFlowGraphReference?.controlFlowGraph ?: return failed()
 
-        val cfg = owner.controlFlowGraphReference?.controlFlowGraph ?: return failed()
-
-        reporter.reportOn(owner.source, DEBUG_INFO, cfg.render(), context)
+        reporter.reportOn(expression.source, DEBUG_INFO, "Graph: ${cfg.render()}", context)
 
         val infos = cfg.traverseToFixedPoint(
             IntervalAnalysisVisitor()
         )
+
+        reporter.reportOn(expression.source, DEBUG_INFO, "Infos: $infos", context)
+
+        val result = infos.mapKeys { (it, _) -> it.fir }[expression]
+
+        reporter.reportOn(expression.source, DEBUG_INFO, "Result: $result", context)
     }
-
-    val FirExpression.literalIntValue: Long?
-        get() = (this as? FirLiteralExpression)?.takeIf { it.resolvedType.isInt }?.value as? Long
-
-    val FirExpression.propertyAccessSymbol: FirPropertySymbol?
-        get() = (this as? FirPropertyAccessExpression)?.calleeReference?.toResolvedSymbol<FirPropertySymbol>()
 }

@@ -27,6 +27,8 @@ repositories {
 dependencies {
     compileOnly(kotlin("compiler-embeddable"))
 
+    compileOnly("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.8")
+
     testImplementation(kotlin("test"))
 }
 
