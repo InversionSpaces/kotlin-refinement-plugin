@@ -52,6 +52,16 @@ fun PathAwareIntervalInfo.update(
     return b.build()
 }
 
+fun PathAwareIntervalInfo.updateAll(
+    intervals: Map<out FirVariableSymbol<*>, IntervalLattice>
+): PathAwareIntervalInfo {
+    val b = builder()
+    b.mapValuesTo(b) {
+        it.value.putAll(intervals)
+    }
+    return b.build()
+}
+
 fun PathAwareIntervalInfo.retrieve(
     symbol: FirVariableSymbol<*>
 ): IntervalLattice {

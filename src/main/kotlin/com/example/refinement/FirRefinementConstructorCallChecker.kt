@@ -9,6 +9,8 @@ import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_MULTIPLE_REQUIRE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_PREDICATE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_TYPE
 import com.example.refinement.analysis.IntervalAnalysisVisitor
+import com.example.refinement.analysis.interpretComparison
+import com.example.refinement.analysis.interpretCondition
 import com.example.refinement.fir.REQUIRE_CALLABLE_ID
 import com.example.refinement.fir.literalIntValue
 import com.example.refinement.fir.propertyAccessSymbol
@@ -47,45 +49,6 @@ import org.jetbrains.kotlin.fir.types.isInt
 import org.jetbrains.kotlin.fir.types.resolvedType
 
 object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
-    private fun analyseExpr(
-        property: FirPropertySymbol,
-        expr: FirExpression,
-        context: CheckerContext,
-        reporter: DiagnosticReporter
-    ): IntervalRefinement? {
-        val unsupported = {
-            reporter.reportOn(expr.source, UNSUPPORTED_PREDICATE, context)
-            null
-        }
-
-        if (expr !is FirComparisonExpression) return unsupported()
-
-        val left = expr.compareToCall.dispatchReceiver ?: return unsupported()
-        val right = expr.compareToCall.argument
-
-        return when {
-            left.literalIntValue == 0L && right.propertyAccessSymbol == property -> {
-                when (expr.operation) {
-                    FirOperation.EQ -> IntervalRefinement.ZERO
-                    FirOperation.GT -> IntervalRefinement.NEGATIVE
-                    FirOperation.LT -> IntervalRefinement.POSITIVE
-                    else -> unsupported()
-                }
-            }
-
-            right.literalIntValue == 0L && left.propertyAccessSymbol == property -> {
-                when (expr.operation) {
-                    FirOperation.EQ -> IntervalRefinement.ZERO
-                    FirOperation.GT -> IntervalRefinement.POSITIVE
-                    FirOperation.LT -> IntervalRefinement.NEGATIVE
-                    else -> unsupported()
-                }
-            }
-
-            else -> unsupported()
-        }
-    }
-
     private fun analyseClass(
         ctor: FirConstructorSymbol,
         decl: FirRegularClass,
@@ -126,9 +89,16 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
             return UnsupportedRefinement
         }
 
-        val refinement =
-            analyseExpr(property, reqs.single().argument, context, reporter) ?: return UnsupportedRefinement
-
+        val condition = reqs.single().argument
+        val refinement = (condition as? FirComparisonExpression)?.let {
+            interpretComparison(it)
+        }?.let { (arg, interval) ->
+            interval.toRefinement()?.takeIf { arg == property }
+        } ?: run {
+            reporter.reportOn(condition.source, UNSUPPORTED_PREDICATE, context)
+            return UnsupportedRefinement
+        }
+        
         return ParameterRefinement(parameter, refinement)
     }
 
@@ -163,7 +133,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
             it.controlFlowGraphReference?.controlFlowGraph != null
         }?.controlFlowGraphReference?.controlFlowGraph ?: return failed()
 
-//        reporter.reportOn(expression.source, DEBUG_INFO, "Graph: ${cfg.render()}", context)
+        reporter.reportOn(expression.source, DEBUG_INFO, "Graph: ${cfg.render()}", context)
 
         val infos = cfg.traverseToFixedPoint(
             IntervalAnalysisVisitor()

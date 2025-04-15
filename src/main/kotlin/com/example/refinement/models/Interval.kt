@@ -7,6 +7,13 @@ enum class IntervalRefinement {
 enum class IntervalLattice {
     ZERO, POSITIVE, NEGATIVE, UNKNOWN, UNDEFINED;
 
+    fun toRefinement(): IntervalRefinement? = when (this) {
+        ZERO -> IntervalRefinement.ZERO
+        POSITIVE -> IntervalRefinement.POSITIVE
+        NEGATIVE -> IntervalRefinement.NEGATIVE
+        else -> null
+    }
+
     operator fun plus(other: IntervalLattice): IntervalLattice = join(this, other)
 
     operator fun minus(other: IntervalLattice): IntervalLattice = this + (-other)
