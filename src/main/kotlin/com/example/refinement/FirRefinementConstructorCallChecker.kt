@@ -9,6 +9,7 @@ import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_MULTIPLE_REQUIRE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_PREDICATE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_TYPE
 import com.example.refinement.analysis.IntervalAnalysisVisitor
+import com.example.refinement.fir.REQUIRE_CALLABLE_ID
 import com.example.refinement.fir.literalIntValue
 import com.example.refinement.fir.propertyAccessSymbol
 import com.example.refinement.models.IntervalRefinement
@@ -33,6 +34,7 @@ import org.jetbrains.kotlin.fir.expressions.FirOperation
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.argument
 import org.jetbrains.kotlin.fir.references.impl.FirPropertyFromParameterResolvedNamedReference
+import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.references.toResolvedSymbol
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.render
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.renderControlFlowGraph
@@ -109,8 +111,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
         val reqs = decl.declarations.flatMap {
             (it as? FirAnonymousInitializer)?.body?.statements ?: emptyList()
         }.mapNotNull { it as? FirFunctionCall }.filter {
-            // TODO: Better match with require?
-            it.calleeReference.toResolvedSymbol<FirNamedFunctionSymbol>()?.name?.asString() == "require"
+            it.calleeReference.toResolvedNamedFunctionSymbol()?.callableId == REQUIRE_CALLABLE_ID
         }
 
         if (reqs.isEmpty()) {
@@ -162,7 +163,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
             it.controlFlowGraphReference?.controlFlowGraph != null
         }?.controlFlowGraphReference?.controlFlowGraph ?: return failed()
 
-        reporter.reportOn(expression.source, DEBUG_INFO, "Graph: ${cfg.render()}", context)
+//        reporter.reportOn(expression.source, DEBUG_INFO, "Graph: ${cfg.render()}", context)
 
         val infos = cfg.traverseToFixedPoint(
             IntervalAnalysisVisitor()
@@ -172,6 +173,6 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
 
         val result = infos.mapKeys { (it, _) -> it.fir }[expression]
 
-        reporter.reportOn(expression.source, DEBUG_INFO, "Result: $result", context)
+//        reporter.reportOn(expression.source, DEBUG_INFO, "Result: $result", context)
     }
 }

@@ -5,7 +5,7 @@ enum class IntervalRefinement {
 }
 
 enum class IntervalLattice {
-    ZERO, POSITIVE, NEGATIVE, UNKNOWN;
+    ZERO, POSITIVE, NEGATIVE, UNKNOWN, UNDEFINED;
 
     operator fun plus(other: IntervalLattice): IntervalLattice = join(this, other)
 
@@ -27,6 +27,7 @@ enum class IntervalLattice {
     companion object {
         fun join(left: IntervalLattice, right: IntervalLattice): IntervalLattice =
             when (left) {
+                UNDEFINED -> right
                 right -> right
                 else -> UNKNOWN
             }
