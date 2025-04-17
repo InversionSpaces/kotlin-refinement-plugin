@@ -28,3 +28,15 @@ val PLUS_CALLABLE_ID = CallableId(
     className = FqName("Int"),
     callableName = Name.identifier("plus")
 )
+
+val MINUS_CALLABLE_ID = CallableId(
+    packageName = FqName("kotlin"),
+    className = FqName("Int"),
+    callableName = Name.identifier("minus")
+)
+
+val TIMES_CALLABLE_ID = CallableId(
+    packageName = FqName("kotlin"),
+    className = FqName("Int"),
+    callableName = Name.identifier("times")
+)

@@ -1,6 +1,8 @@
 package com.example.refinement.analysis
 
+import com.example.refinement.fir.MINUS_CALLABLE_ID
 import com.example.refinement.fir.PLUS_CALLABLE_ID
+import com.example.refinement.fir.TIMES_CALLABLE_ID
 import com.example.refinement.fir.literalIntValue
 import com.example.refinement.fir.propertyAccessSymbol
 import com.example.refinement.models.IntervalLattice
@@ -33,6 +35,8 @@ fun PathAwareIntervalInfo.evaluate(
             val symbol = expression.calleeReference.toResolvedNamedFunctionSymbol() ?: return null
             when (symbol.callableId) {
                 PLUS_CALLABLE_ID -> leftInterval + rightInterval
+                MINUS_CALLABLE_ID -> leftInterval - rightInterval
+                TIMES_CALLABLE_ID -> leftInterval * rightInterval
                 else -> null
             }
         }
