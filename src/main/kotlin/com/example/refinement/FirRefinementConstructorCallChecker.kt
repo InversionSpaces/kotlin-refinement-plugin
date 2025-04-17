@@ -1,6 +1,7 @@
 package com.example.refinement
 
-import com.example.refinement.RefinementDiagnostics.DEBUG_INFO
+import com.example.refinement.RefinementDiagnostics.DEDUCED_CORRECTNESS
+import com.example.refinement.RefinementDiagnostics.DEDUCED_INCORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_DEDUCE_CORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_GET_UNDERLYING_VALUE
 import com.example.refinement.RefinementDiagnostics.ONLY_PRIMARY_CONSTRUCTORS_SUPPORTED
@@ -9,12 +10,9 @@ import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_MULTIPLE_REQUIRE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_PREDICATE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_TYPE
 import com.example.refinement.analysis.IntervalAnalysisVisitor
+import com.example.refinement.analysis.evaluate
 import com.example.refinement.analysis.interpretComparison
-import com.example.refinement.analysis.interpretCondition
 import com.example.refinement.fir.REQUIRE_CALLABLE_ID
-import com.example.refinement.fir.literalIntValue
-import com.example.refinement.fir.propertyAccessSymbol
-import com.example.refinement.models.IntervalRefinement
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.analysis.cfa.util.traverseToFixedPoint
@@ -29,24 +27,17 @@ import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.getConstructedClass
 import org.jetbrains.kotlin.fir.declarations.isInlineOrValueClass
 import org.jetbrains.kotlin.fir.expressions.FirComparisonExpression
-import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
-import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
-import org.jetbrains.kotlin.fir.expressions.FirOperation
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.argument
+import org.jetbrains.kotlin.fir.expressions.impl.FirResolvedArgumentList
 import org.jetbrains.kotlin.fir.references.impl.FirPropertyFromParameterResolvedNamedReference
 import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.references.toResolvedSymbol
-import org.jetbrains.kotlin.fir.resolve.dfa.cfg.render
-import org.jetbrains.kotlin.fir.resolve.dfa.cfg.renderControlFlowGraph
 import org.jetbrains.kotlin.fir.resolve.dfa.controlFlowGraph
 import org.jetbrains.kotlin.fir.resolve.providers.firProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.types.isInt
-import org.jetbrains.kotlin.fir.types.resolvedType
 
 object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
     private fun analyseClass(
@@ -93,12 +84,12 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
         val refinement = (condition as? FirComparisonExpression)?.let {
             interpretComparison(it)
         }?.let { (arg, interval) ->
-            interval.toRefinement()?.takeIf { arg == property }
+            interval.takeIf { arg == property }?.toRefinement()
         } ?: run {
             reporter.reportOn(condition.source, UNSUPPORTED_PREDICATE, context)
             return UnsupportedRefinement
         }
-        
+
         return ParameterRefinement(parameter, refinement)
     }
 
@@ -132,17 +123,19 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
         val cfg = context.findClosest<FirControlFlowGraphOwner> {
             it.controlFlowGraphReference?.controlFlowGraph != null
         }?.controlFlowGraphReference?.controlFlowGraph ?: return failed()
+        val analysis = cfg.traverseToFixedPoint(IntervalAnalysisVisitor())
+        val analysisInfo = analysis.mapKeys { (it, _) -> it.fir }[expression] ?: return failed()
 
-        reporter.reportOn(expression.source, DEBUG_INFO, "Graph: ${cfg.render()}", context)
+        val args = expression.argumentList as? FirResolvedArgumentList ?: return failed()
+        val paramExpr = args.mapping.mapNotNull { (expr, param) ->
+            expr.takeIf { param.symbol == info.parameter }
+        }.singleOrNull() ?: return failed()
 
-        val infos = cfg.traverseToFixedPoint(
-            IntervalAnalysisVisitor()
-        )
-
-        reporter.reportOn(expression.source, DEBUG_INFO, "Infos: $infos", context)
-
-        val result = infos.mapKeys { (it, _) -> it.fir }[expression]
-
-//        reporter.reportOn(expression.source, DEBUG_INFO, "Result: $result", context)
+        val interval = analysisInfo.evaluate(paramExpr)?.toRefinement() ?: return failed()
+        if (interval == info.refinement) {
+            reporter.reportOn(expression.source, DEDUCED_CORRECTNESS, context)
+        } else {
+            reporter.reportOn(expression.source, DEDUCED_INCORRECTNESS, context)
+        }
     }
 }

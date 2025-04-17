@@ -1,6 +1,8 @@
 package com.example.refinement
 
 import com.example.refinement.RefinementDiagnostics.DEBUG_INFO
+import com.example.refinement.RefinementDiagnostics.DEDUCED_CORRECTNESS
+import com.example.refinement.RefinementDiagnostics.DEDUCED_INCORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_DEDUCE_CORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_GET_UNDERLYING_VALUE
 import com.example.refinement.RefinementDiagnostics.ONLY_PRIMARY_CONSTRUCTORS_SUPPORTED
@@ -29,6 +31,8 @@ object RefinementDiagnostics {
     val UNSUPPORTED_PREDICATE by error0<PsiElement>()
 
     val FAILED_TO_DEDUCE_CORRECTNESS by warning0<PsiElement>()
+    val DEDUCED_CORRECTNESS by warning0<PsiElement>()
+    val DEDUCED_INCORRECTNESS by warning0<PsiElement>()
 
     val DEBUG_INFO by warning1<PsiElement, String>()
 
@@ -47,6 +51,8 @@ object RefinementDiagnosticRender : BaseDiagnosticRendererFactory() {
             put(UNSUPPORTED_MULTIPLE_REQUIRE_CALLS, "Multiple `require` calls are not supported")
             put(UNSUPPORTED_PREDICATE, "Unsupported predicate")
             put(FAILED_TO_DEDUCE_CORRECTNESS, "Failed to deduce correctness of constructor call")
+            put(DEDUCED_CORRECTNESS, "Constructor call is correct")
+            put(DEDUCED_INCORRECTNESS, "Constructor call is incorrect")
 
             put(DEBUG_INFO, "DEBUG: {0}", CommonRenderers.STRING)
         }

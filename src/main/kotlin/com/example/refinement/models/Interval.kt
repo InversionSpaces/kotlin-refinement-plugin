@@ -14,7 +14,12 @@ enum class IntervalLattice {
         else -> null
     }
 
-    operator fun plus(other: IntervalLattice): IntervalLattice = join(this, other)
+    operator fun plus(other: IntervalLattice): IntervalLattice = when (this) {
+        ZERO -> other
+        other -> other
+        UNDEFINED -> UNDEFINED
+        else -> UNKNOWN
+    }
 
     operator fun minus(other: IntervalLattice): IntervalLattice = this + (-other)
 
@@ -22,6 +27,7 @@ enum class IntervalLattice {
         ZERO -> ZERO
         POSITIVE -> other
         NEGATIVE -> -other
+        UNDEFINED -> UNDEFINED
         else -> UNKNOWN
     }
 
