@@ -15,8 +15,11 @@ import org.jetbrains.kotlin.name.Name
 val FirExpression.literalIntValue: Long?
     get() = (this as? FirLiteralExpression)?.takeIf { it.resolvedType.isInt }?.value as? Long
 
+val FirExpression.propertyAccess: FirPropertyAccessExpression?
+    get() = this as? FirPropertyAccessExpression
+
 val FirExpression.propertyAccessSymbol: FirPropertySymbol?
-    get() = (this as? FirPropertyAccessExpression)?.calleeReference?.toResolvedPropertySymbol()
+    get() = propertyAccess?.calleeReference?.toResolvedPropertySymbol()
 
 val REQUIRE_CALLABLE_ID = CallableId(
     packageName = FqName("kotlin"),

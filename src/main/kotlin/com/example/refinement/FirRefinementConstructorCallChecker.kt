@@ -13,6 +13,8 @@ import com.example.refinement.analysis.IntervalAnalysisVisitor
 import com.example.refinement.analysis.evaluate
 import com.example.refinement.analysis.interpretComparison
 import com.example.refinement.fir.REQUIRE_CALLABLE_ID
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.analysis.cfa.util.traverseToFixedPoint
@@ -32,6 +34,7 @@ import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.argument
 import org.jetbrains.kotlin.fir.expressions.impl.FirResolvedArgumentList
 import org.jetbrains.kotlin.fir.references.impl.FirPropertyFromParameterResolvedNamedReference
+import org.jetbrains.kotlin.fir.references.toResolvedConstructorSymbol
 import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.references.toResolvedSymbol
 import org.jetbrains.kotlin.fir.resolve.dfa.controlFlowGraph
@@ -39,7 +42,9 @@ import org.jetbrains.kotlin.fir.resolve.providers.firProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
 import org.jetbrains.kotlin.fir.types.isInt
 
-object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKind.Common) {
+class FirRefinementConstructorCallChecker(
+    private val messageCollector: MessageCollector
+) : FirFunctionCallChecker(MppCheckerKind.Common) {
     private fun analyseClass(
         ctor: FirConstructorSymbol,
         decl: FirRegularClass,
@@ -98,7 +103,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
         context: CheckerContext,
         reporter: DiagnosticReporter
     ) {
-        val ctor = expression.calleeReference.toResolvedSymbol<FirConstructorSymbol>() ?: return
+        val ctor = expression.calleeReference.toResolvedConstructorSymbol() ?: return
         val klass = ctor.getConstructedClass(context.session) ?: return
         val matcher = context.session.refinementPredicateMatcher
         if (!matcher.isAnnotated(klass)) return
@@ -115,7 +120,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
         }
 
         if (info !is ParameterRefinement) return
-
+        
         val failed = {
             reporter.reportOn(expression.source, FAILED_TO_DEDUCE_CORRECTNESS, context)
         }
@@ -123,7 +128,7 @@ object FirRefinementConstructorCallChecker : FirFunctionCallChecker(MppCheckerKi
         val cfg = context.findClosest<FirControlFlowGraphOwner> {
             it.controlFlowGraphReference?.controlFlowGraph != null
         }?.controlFlowGraphReference?.controlFlowGraph ?: return failed()
-        val analysis = cfg.traverseToFixedPoint(IntervalAnalysisVisitor())
+        val analysis = cfg.traverseToFixedPoint(IntervalAnalysisVisitor(messageCollector))
         val analysisInfo = analysis.mapKeys { (it, _) -> it.fir }[expression] ?: return failed()
 
         val args = expression.argumentList as? FirResolvedArgumentList ?: return failed()

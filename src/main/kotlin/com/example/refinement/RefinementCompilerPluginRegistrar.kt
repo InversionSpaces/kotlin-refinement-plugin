@@ -1,10 +1,13 @@
 package com.example.refinement
 
 import com.example.refinement.RefinementConfigurationKeys.REFINEMENT_ANNOTATIONS
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.compiler.plugin.AbstractCliOption
 import org.jetbrains.kotlin.compiler.plugin.CliOption
 import org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrarAdapter
@@ -15,7 +18,7 @@ object RefinementConfigurationKeys {
     )
 }
 
-class RefinementPluginOptions: CommandLineProcessor {
+class RefinementPluginOptions : CommandLineProcessor {
     override val pluginId: String
         get() = "org.example.refinement"
 
@@ -30,6 +33,7 @@ class RefinementPluginOptions: CommandLineProcessor {
         REFINEMENT_ANNOTATIONS_OPTION -> configuration.appendList(
             REFINEMENT_ANNOTATIONS, value
         )
+
         else -> error("Unexpected config option ${option.optionName}")
     }
 
@@ -52,8 +56,9 @@ class RefinementCompilerPluginRegistrar : CompilerPluginRegistrar() {
         configuration: CompilerConfiguration
     ) {
         val annotations = configuration.getNotNull(REFINEMENT_ANNOTATIONS)
+        val messageCollector = configuration.get(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
         FirExtensionRegistrarAdapter.registerExtension(
-            FirRefinementExtensionRegistrar(annotations)
+            FirRefinementExtensionRegistrar(annotations, messageCollector)
         )
     }
 }

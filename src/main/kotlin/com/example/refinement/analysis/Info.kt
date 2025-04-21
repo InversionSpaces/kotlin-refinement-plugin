@@ -4,29 +4,38 @@ import com.example.refinement.fir.MINUS_CALLABLE_ID
 import com.example.refinement.fir.PLUS_CALLABLE_ID
 import com.example.refinement.fir.TIMES_CALLABLE_ID
 import com.example.refinement.fir.literalIntValue
+import com.example.refinement.fir.propertyAccess
 import com.example.refinement.fir.propertyAccessSymbol
 import com.example.refinement.models.IntervalLattice
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.fir.analysis.cfa.util.ControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
+import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirOperation
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.references.toResolvedSymbol
+import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
+import org.jetbrains.kotlin.fir.types.classId
 
 typealias IntervalInfo = ControlFlowInfo<FirVariableSymbol<*>, IntervalLattice>
 typealias PathAwareIntervalInfo = PathAwareControlFlowInfo<FirVariableSymbol<*>, IntervalLattice>
 
 fun PathAwareIntervalInfo.evaluate(
-    expression: FirExpression
+    expression: FirExpression,
+    messageCollector: MessageCollector? = null // TODO: Remove
 ): IntervalLattice? {
     val literal = expression.literalIntValue
     val property = expression.propertyAccessSymbol
     return when {
         literal != null -> IntervalLattice.fromLiteral(literal)
+
         property != null -> retrieve(property)
+
         expression is FirFunctionCall -> {
             val left = expression.dispatchReceiver ?: return null
             val right = expression.arguments.singleOrNull() ?: return null

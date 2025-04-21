@@ -3,6 +3,7 @@ package com.example.refinement.analysis
 import com.example.refinement.fir.literalIntValue
 import com.example.refinement.fir.propertyAccessSymbol
 import com.example.refinement.models.IntervalLattice
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.fir.analysis.cfa.util.ControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowGraphVisitor
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
@@ -15,7 +16,9 @@ import org.jetbrains.kotlin.fir.resolve.dfa.cfg.WhenBranchResultEnterNode
 import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
 import org.jetbrains.kotlin.fir.types.isInt
 
-class IntervalAnalysisVisitor : PathAwareControlFlowGraphVisitor<FirVariableSymbol<*>, IntervalLattice>() {
+class IntervalAnalysisVisitor(
+    private val messageCollector: MessageCollector
+) : PathAwareControlFlowGraphVisitor<FirVariableSymbol<*>, IntervalLattice>() {
     override fun mergeInfo(
         a: IntervalInfo,
         b: IntervalInfo,
@@ -36,7 +39,7 @@ class IntervalAnalysisVisitor : PathAwareControlFlowGraphVisitor<FirVariableSymb
     ): PathAwareIntervalInfo {
         val data = visitNode(node, data)
         if (!node.fir.symbol.resolvedReturnType.isInt) return data
-        val interval = node.fir.initializer?.let { data.evaluate(it) } ?: IntervalLattice.UNKNOWN
+        val interval = node.fir.initializer?.let { data.evaluate(it, messageCollector) } ?: IntervalLattice.UNKNOWN
         return data.update(node.fir.symbol, interval)
     }
 
