@@ -1,46 +1,66 @@
 package com.example.refinement.analysis
 
-import com.example.refinement.fir.MINUS_CALLABLE_ID
-import com.example.refinement.fir.PLUS_CALLABLE_ID
-import com.example.refinement.fir.TIMES_CALLABLE_ID
-import com.example.refinement.fir.literalIntValue
-import com.example.refinement.fir.propertyAccess
-import com.example.refinement.fir.propertyAccessSymbol
+import com.example.refinement.fir.*
 import com.example.refinement.models.IntervalLattice
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.cfa.util.ControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
-import org.jetbrains.kotlin.fir.declarations.utils.correspondingValueParameterFromPrimaryConstructor
+import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
-import org.jetbrains.kotlin.fir.expressions.FirOperation
+import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
-import org.jetbrains.kotlin.fir.references.toResolvedSymbol
-import org.jetbrains.kotlin.fir.resolve.toSymbol
+import org.jetbrains.kotlin.fir.references.toResolvedPropertySymbol
+import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
-import org.jetbrains.kotlin.fir.types.classId
+import org.jetbrains.kotlin.fir.types.resolvedType
 
 typealias IntervalInfo = ControlFlowInfo<FirVariableSymbol<*>, IntervalLattice>
 typealias PathAwareIntervalInfo = PathAwareControlFlowInfo<FirVariableSymbol<*>, IntervalLattice>
 
+internal fun refineProperty(
+    property: FirPropertyAccessExpression,
+    context: CheckerContext,
+    reporter: DiagnosticReporter
+): IntervalLattice? {
+    val klass = property.dispatchReceiver?.resolvedType?.toRegularClassSymbol(context.session) ?: return null
+    val info = klass.getRefinementClassInfo(context, reporter) ?: return null
+
+    if (info !is ParameterRefinement) return null
+
+    return info.refinement.toLattice()
+}
+
 fun PathAwareIntervalInfo.evaluate(
     expression: FirExpression,
+    context: CheckerContext,
+    reporter: DiagnosticReporter,
     messageCollector: MessageCollector? = null // TODO: Remove
 ): IntervalLattice? {
     val literal = expression.literalIntValue
-    val property = expression.propertyAccessSymbol
+    val property = expression.propertyAccess
     return when {
         literal != null -> IntervalLattice.fromLiteral(literal)
 
-        property != null -> retrieve(property)
+        property != null -> {
+            val refinement = refineProperty(property, context, reporter)
+            val symbol = property.calleeReference.toResolvedPropertySymbol()
+            val variable = symbol?.let { retrieve(it) }
+            when {
+                refinement != null && variable != null -> IntervalLattice.join(refinement, variable)
+                refinement != null -> refinement
+                variable != null -> variable
+                else -> null
+            }
+        }
 
         expression is FirFunctionCall -> {
             val left = expression.dispatchReceiver ?: return null
             val right = expression.arguments.singleOrNull() ?: return null
-            val leftInterval = evaluate(left) ?: return null
-            val rightInterval = evaluate(right) ?: return null
+            val leftInterval = evaluate(left, context, reporter, messageCollector) ?: return null
+            val rightInterval = evaluate(right, context, reporter, messageCollector) ?: return null
             val symbol = expression.calleeReference.toResolvedNamedFunctionSymbol() ?: return null
             when (symbol.callableId) {
                 PLUS_CALLABLE_ID -> leftInterval + rightInterval

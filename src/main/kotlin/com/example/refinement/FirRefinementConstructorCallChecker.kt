@@ -71,7 +71,8 @@ class FirRefinementConstructorCallChecker(
         val cfg = context.findClosest<FirControlFlowGraphOwner> {
             it.controlFlowGraphReference?.controlFlowGraph != null
         }?.controlFlowGraphReference?.controlFlowGraph ?: return failed()
-        val analysis = cfg.traverseToFixedPoint(IntervalAnalysisVisitor(messageCollector))
+        val visitor = IntervalAnalysisVisitor(context, reporter, messageCollector)
+        val analysis = cfg.traverseToFixedPoint(visitor)
         val analysisInfo = analysis.mapKeys { (it, _) -> it.fir }[expression] ?: return failed()
 
         val args = expression.argumentList as? FirResolvedArgumentList ?: return failed()
@@ -79,7 +80,9 @@ class FirRefinementConstructorCallChecker(
             expr.takeIf { param.symbol == info.parameter }
         }.singleOrNull() ?: return failed()
 
-        val interval = analysisInfo.evaluate(paramExpr)?.toRefinement() ?: return failed()
+        val interval = analysisInfo.evaluate(
+            paramExpr, context, reporter, messageCollector
+        )?.toRefinement() ?: return failed()
         if (interval == info.refinement) {
             reporter.reportOn(expression.source, DEDUCED_CORRECTNESS, context)
         } else {

@@ -4,9 +4,11 @@ import com.example.refinement.fir.literalIntValue
 import com.example.refinement.fir.propertyAccessSymbol
 import com.example.refinement.models.IntervalLattice
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.cfa.util.ControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowGraphVisitor
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
+import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.CFGNode
@@ -17,6 +19,8 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
 import org.jetbrains.kotlin.fir.types.isInt
 
 class IntervalAnalysisVisitor(
+    private val context: CheckerContext,
+    private val reporter: DiagnosticReporter,
     private val messageCollector: MessageCollector
 ) : PathAwareControlFlowGraphVisitor<FirVariableSymbol<*>, IntervalLattice>() {
     override fun mergeInfo(
@@ -39,7 +43,9 @@ class IntervalAnalysisVisitor(
     ): PathAwareIntervalInfo {
         val data = visitNode(node, data)
         if (!node.fir.symbol.resolvedReturnType.isInt) return data
-        val interval = node.fir.initializer?.let { data.evaluate(it, messageCollector) } ?: IntervalLattice.UNKNOWN
+        val interval = node.fir.initializer?.let {
+            data.evaluate(it, context, reporter, messageCollector)
+        } ?: IntervalLattice.UNKNOWN
         return data.update(node.fir.symbol, interval)
     }
 
@@ -51,7 +57,9 @@ class IntervalAnalysisVisitor(
         // TODO: Can there be more sophisticated assignments?
         val symbol = node.fir.lValue.propertyAccessSymbol ?: return data
         if (!symbol.resolvedReturnType.isInt) return data
-        val interval = data.evaluate(node.fir.rValue) ?: IntervalLattice.UNKNOWN
+        val interval = data.evaluate(
+            node.fir.rValue, context, reporter, messageCollector
+        ) ?: IntervalLattice.UNKNOWN
         return data.update(symbol, interval)
     }
 

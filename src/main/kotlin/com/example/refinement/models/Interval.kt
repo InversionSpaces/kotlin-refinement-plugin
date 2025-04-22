@@ -1,7 +1,13 @@
 package com.example.refinement.models
 
 enum class IntervalRefinement {
-    ZERO, POSITIVE, NEGATIVE
+    ZERO, POSITIVE, NEGATIVE;
+
+    fun toLattice(): IntervalLattice = when (this) {
+        ZERO -> IntervalLattice.ZERO
+        POSITIVE -> IntervalLattice.POSITIVE
+        NEGATIVE -> IntervalLattice.NEGATIVE
+    }
 }
 
 enum class IntervalLattice {
@@ -39,9 +45,10 @@ enum class IntervalLattice {
 
     companion object {
         fun join(left: IntervalLattice, right: IntervalLattice): IntervalLattice =
-            when (left) {
-                UNDEFINED -> right
-                right -> right
+            when {
+                left == UNDEFINED -> right
+                right == UNDEFINED -> left
+                left == right -> right
                 else -> UNKNOWN
             }
 
