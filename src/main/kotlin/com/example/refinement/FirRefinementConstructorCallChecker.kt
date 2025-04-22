@@ -4,7 +4,7 @@ import com.example.refinement.RefinementDiagnostics.DEDUCED_CORRECTNESS
 import com.example.refinement.RefinementDiagnostics.DEDUCED_INCORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_DEDUCE_CORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_GET_UNDERLYING_VALUE
-import com.example.refinement.RefinementDiagnostics.ONLY_PRIMARY_CONSTRUCTORS_SUPPORTED
+import com.example.refinement.RefinementDiagnostics.NO_PRIMARY_CONSTRUCTOR_FOUND
 import com.example.refinement.RefinementDiagnostics.ONLY_VALUE_CLASSES_ARE_SUPPORTED
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_MULTIPLE_REQUIRE_CALLS
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_PREDICATE
@@ -12,8 +12,13 @@ import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_TYPE
 import com.example.refinement.analysis.IntervalAnalysisVisitor
 import com.example.refinement.analysis.evaluate
 import com.example.refinement.analysis.interpretComparison
+import com.example.refinement.fir.NoRefinement
+import com.example.refinement.fir.ParameterRefinement
 import com.example.refinement.fir.REQUIRE_CALLABLE_ID
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import com.example.refinement.fir.RefinementClassInfo
+import com.example.refinement.fir.UnsupportedRefinement
+import com.example.refinement.fir.getRefinementClassInfo
+import com.example.refinement.fir.refinementClassInfo
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -36,7 +41,6 @@ import org.jetbrains.kotlin.fir.expressions.impl.FirResolvedArgumentList
 import org.jetbrains.kotlin.fir.references.impl.FirPropertyFromParameterResolvedNamedReference
 import org.jetbrains.kotlin.fir.references.toResolvedConstructorSymbol
 import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
-import org.jetbrains.kotlin.fir.references.toResolvedSymbol
 import org.jetbrains.kotlin.fir.resolve.dfa.controlFlowGraph
 import org.jetbrains.kotlin.fir.resolve.providers.firProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
@@ -45,59 +49,6 @@ import org.jetbrains.kotlin.fir.types.isInt
 class FirRefinementConstructorCallChecker(
     private val messageCollector: MessageCollector
 ) : FirFunctionCallChecker(MppCheckerKind.Common) {
-    private fun analyseClass(
-        ctor: FirConstructorSymbol,
-        decl: FirRegularClass,
-        context: CheckerContext,
-        reporter: DiagnosticReporter,
-    ): RefinementClassInfo {
-        val parameter = ctor.valueParameterSymbols.singleOrNull() ?: return UnsupportedRefinement
-        val parameterType = parameter.resolvedReturnTypeRef.coneType
-        if (!parameterType.isInt) {
-            reporter.reportOn(parameter.source, UNSUPPORTED_TYPE, parameterType, context)
-            return UnsupportedRefinement
-        }
-
-        val property = decl.declarations.filterIsInstance<FirProperty>().singleOrNull {
-            (it.initializer as? FirPropertyAccessExpression)?.calleeReference?.let {
-                (it as? FirPropertyFromParameterResolvedNamedReference)?.resolvedSymbol == parameter
-            } == true
-        }?.symbol ?: run {
-            reporter.reportOn(decl.source, FAILED_TO_GET_UNDERLYING_VALUE, context)
-            return UnsupportedRefinement
-        }
-
-        val reqs = decl.declarations.flatMap {
-            (it as? FirAnonymousInitializer)?.body?.statements ?: emptyList()
-        }.mapNotNull { it as? FirFunctionCall }.filter {
-            it.calleeReference.toResolvedNamedFunctionSymbol()?.callableId == REQUIRE_CALLABLE_ID
-        }
-
-        if (reqs.isEmpty()) {
-            return NoRefinement
-        }
-
-        if (reqs.size > 1) {
-            reqs.forEach {
-                reporter.reportOn(it.source, UNSUPPORTED_MULTIPLE_REQUIRE_CALLS, context)
-            }
-
-            return UnsupportedRefinement
-        }
-
-        val condition = reqs.single().argument
-        val refinement = (condition as? FirComparisonExpression)?.let {
-            interpretComparison(it)
-        }?.let { (arg, interval) ->
-            interval.takeIf { arg == property }?.toRefinement()
-        } ?: run {
-            reporter.reportOn(condition.source, UNSUPPORTED_PREDICATE, context)
-            return UnsupportedRefinement
-        }
-
-        return ParameterRefinement(parameter, refinement)
-    }
-
     override fun check(
         expression: FirFunctionCall,
         context: CheckerContext,
@@ -105,22 +56,14 @@ class FirRefinementConstructorCallChecker(
     ) {
         val ctor = expression.calleeReference.toResolvedConstructorSymbol() ?: return
         val klass = ctor.getConstructedClass(context.session) ?: return
-        val matcher = context.session.refinementPredicateMatcher
-        if (!matcher.isAnnotated(klass)) return
-        if (!klass.isInlineOrValueClass()) {
-            return reporter.reportOn(klass.source, ONLY_VALUE_CLASSES_ARE_SUPPORTED, context)
-        }
-        if (!ctor.isPrimary) {
-            return reporter.reportOn(expression.source, ONLY_PRIMARY_CONSTRUCTORS_SUPPORTED, context)
-        }
+        val info = klass.getRefinementClassInfo(context, reporter) ?: return
 
-        val decl = context.session.firProvider.getFirClassifierByFqName(klass.classId) as? FirRegularClass ?: return
-        val info: RefinementClassInfo = decl.refinementClassInfo ?: run {
-            analyseClass(ctor, decl, context, reporter).also { decl.refinementClassInfo = it }
+        if (!ctor.isPrimary) {
+            return reporter.reportOn(expression.source, NO_PRIMARY_CONSTRUCTOR_FOUND, context)
         }
 
         if (info !is ParameterRefinement) return
-        
+
         val failed = {
             reporter.reportOn(expression.source, FAILED_TO_DEDUCE_CORRECTNESS, context)
         }
