@@ -1,24 +1,23 @@
 package com.example.refinement.analysis
 
 import com.example.refinement.fir.*
+import com.example.refinement.fold
 import com.example.refinement.models.IntervalLattice
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.cfa.util.ControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
-import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.references.toResolvedPropertySymbol
+import org.jetbrains.kotlin.fir.resolve.dfa.DataFlowVariable
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
 import org.jetbrains.kotlin.fir.types.resolvedType
 
-typealias IntervalInfo = ControlFlowInfo<FirVariableSymbol<*>, IntervalLattice>
-typealias PathAwareIntervalInfo = PathAwareControlFlowInfo<FirVariableSymbol<*>, IntervalLattice>
+typealias IntervalInfo = ControlFlowInfo<DataFlowVariable, IntervalLattice>
+typealias PathAwareIntervalInfo = PathAwareControlFlowInfo<DataFlowVariable, IntervalLattice>
 
 internal fun refineProperty(
     property: FirPropertyAccessExpression,
@@ -43,14 +42,8 @@ fun PathAwareIntervalInfo.evaluate(
 
         property != null -> {
             val refinement = refineProperty(property, ctx)
-            val symbol = property.calleeReference.toResolvedPropertySymbol()
-            val variable = symbol?.let { retrieve(it) }
-            when {
-                refinement != null && variable != null -> IntervalLattice.join(refinement, variable)
-                refinement != null -> refinement
-                variable != null -> variable
-                else -> null
-            }
+            val analysis = ctx.getVariable(property)?.let { retrieve(it) }
+            (refinement to analysis).fold(IntervalLattice::join)
         }
 
         expression is FirFunctionCall -> {
@@ -72,18 +65,18 @@ fun PathAwareIntervalInfo.evaluate(
 }
 
 fun PathAwareIntervalInfo.update(
-    symbol: FirVariableSymbol<*>,
+    variable: DataFlowVariable,
     interval: IntervalLattice
 ): PathAwareIntervalInfo {
     val b = builder()
     b.mapValuesTo(b) {
-        it.value.put(symbol, interval)
+        it.value.put(variable, interval)
     }
     return b.build()
 }
 
 fun PathAwareIntervalInfo.updateAll(
-    intervals: Map<out FirVariableSymbol<*>, IntervalLattice>
+    intervals: Map<out DataFlowVariable, IntervalLattice>
 ): PathAwareIntervalInfo {
     val b = builder()
     b.mapValuesTo(b) {
@@ -93,8 +86,8 @@ fun PathAwareIntervalInfo.updateAll(
 }
 
 fun PathAwareIntervalInfo.retrieve(
-    symbol: FirVariableSymbol<*>
+    variable: DataFlowVariable
 ): IntervalLattice {
-    val intervals = mapNotNull { (_, info) -> (info as IntervalInfo)[symbol] as IntervalLattice? }
+    val intervals = mapNotNull { (_, info) -> (info as IntervalInfo)[variable] as IntervalLattice? }
     return intervals.fold(IntervalLattice.UNDEFINED, IntervalLattice::join)
 }

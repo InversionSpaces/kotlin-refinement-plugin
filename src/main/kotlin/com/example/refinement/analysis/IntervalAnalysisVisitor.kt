@@ -1,28 +1,23 @@
 package com.example.refinement.analysis
 
-import com.example.refinement.fir.literalIntValue
-import com.example.refinement.fir.propertyAccessSymbol
 import com.example.refinement.models.IntervalLattice
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
-import org.jetbrains.kotlin.fir.analysis.cfa.util.ControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowGraphVisitor
-import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
-import org.jetbrains.kotlin.fir.expressions.FirExpression
-import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
+import org.jetbrains.kotlin.fir.resolve.dfa.DataFlowVariable
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.CFGNode
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.VariableAssignmentNode
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.VariableDeclarationNode
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.WhenBranchResultEnterNode
-import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
 import org.jetbrains.kotlin.fir.types.isInt
+import org.jetbrains.kotlin.fir.types.resolvedType
 
 class IntervalAnalysisVisitor(
     context: CheckerContext,
     reporter: DiagnosticReporter,
     messageCollector: MessageCollector
-) : PathAwareControlFlowGraphVisitor<FirVariableSymbol<*>, IntervalLattice>() {
+) : PathAwareControlFlowGraphVisitor<DataFlowVariable, IntervalLattice>() {
 
     val ctx = AnalysisContext(context, reporter, messageCollector)
 
@@ -32,8 +27,8 @@ class IntervalAnalysisVisitor(
         node: CFGNode<*>
     ): IntervalInfo {
         val builder = b.builder()
-        for ((symbol, interval) in a) {
-            builder.merge(symbol as FirVariableSymbol<*>, interval as IntervalLattice) { l, r ->
+        for ((variable, interval) in a) {
+            builder.merge(variable as DataFlowVariable, interval as IntervalLattice) { l, r ->
                 IntervalLattice.join(l, r)
             }
         }
@@ -46,10 +41,11 @@ class IntervalAnalysisVisitor(
     ): PathAwareIntervalInfo {
         val data = visitNode(node, data)
         if (!node.fir.symbol.resolvedReturnType.isInt) return data
+        val variable = ctx.createLocalVariable(node.fir.symbol)
         val interval = node.fir.initializer?.let {
             data.evaluate(it, ctx)
         } ?: IntervalLattice.UNKNOWN
-        return data.update(node.fir.symbol, interval)
+        return data.update(variable, interval)
     }
 
     override fun visitVariableAssignmentNode(
@@ -57,11 +53,10 @@ class IntervalAnalysisVisitor(
         data: PathAwareIntervalInfo
     ): PathAwareIntervalInfo {
         val data = visitNode(node, data)
-        // TODO: Can there be more sophisticated assignments?
-        val symbol = node.fir.lValue.propertyAccessSymbol ?: return data
-        if (!symbol.resolvedReturnType.isInt) return data
+        if (!node.fir.lValue.resolvedType.isInt) return data
+        val variable = ctx.getVariable(node.fir.lValue) ?: return data
         val interval = data.evaluate(node.fir.rValue, ctx) ?: IntervalLattice.UNKNOWN
-        return data.update(symbol, interval)
+        return data.update(variable, interval)
     }
 
     override fun visitWhenBranchResultEnterNode(
@@ -69,7 +64,7 @@ class IntervalAnalysisVisitor(
         data: PathAwareIntervalInfo
     ): PathAwareIntervalInfo {
         val data = visitNode(node, data)
-        val interpretation = interpretCondition(node.fir.condition)
+        val interpretation = interpretCondition(node.fir.condition, ctx)
         return data.updateAll(interpretation)
     }
 }

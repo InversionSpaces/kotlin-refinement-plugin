@@ -82,9 +82,9 @@ internal fun analyse(
 
     val condition = reqs.single().argument
     val refinement = (condition as? FirComparisonExpression)?.let {
-        interpretComparison(it)
+        interpretComparison(it) { it.propertyAccessSymbol }
     }?.let { (arg, interval) ->
-        interval.takeIf { arg == property }?.toRefinement()
+        interval.takeIf { arg == property }
     } ?: run {
         reporter.reportOn(condition.source, UNSUPPORTED_PREDICATE, context)
         return UnsupportedRefinement

@@ -8,6 +8,12 @@ enum class IntervalRefinement {
         POSITIVE -> IntervalLattice.POSITIVE
         NEGATIVE -> IntervalLattice.NEGATIVE
     }
+
+    operator fun unaryMinus(): IntervalRefinement = when (this) {
+        ZERO -> ZERO
+        POSITIVE -> NEGATIVE
+        NEGATIVE -> POSITIVE
+    }
 }
 
 enum class IntervalLattice {
