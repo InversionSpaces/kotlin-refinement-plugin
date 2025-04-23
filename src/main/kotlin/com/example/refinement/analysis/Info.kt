@@ -22,11 +22,10 @@ typealias PathAwareIntervalInfo = PathAwareControlFlowInfo<FirVariableSymbol<*>,
 
 internal fun refineProperty(
     property: FirPropertyAccessExpression,
-    context: CheckerContext,
-    reporter: DiagnosticReporter
+    ctx: AnalysisContext
 ): IntervalLattice? {
-    val klass = property.dispatchReceiver?.resolvedType?.toRegularClassSymbol(context.session) ?: return null
-    val info = klass.getRefinementClassInfo(context, reporter) ?: return null
+    val klass = property.dispatchReceiver?.resolvedType?.toRegularClassSymbol(ctx.session) ?: return null
+    val info = klass.getRefinementClassInfo(ctx.checkerContext, ctx.reporter) ?: return null
 
     if (info !is ParameterRefinement) return null
 
@@ -35,9 +34,7 @@ internal fun refineProperty(
 
 fun PathAwareIntervalInfo.evaluate(
     expression: FirExpression,
-    context: CheckerContext,
-    reporter: DiagnosticReporter,
-    messageCollector: MessageCollector? = null // TODO: Remove
+    ctx: AnalysisContext
 ): IntervalLattice? {
     val literal = expression.literalIntValue
     val property = expression.propertyAccess
@@ -45,7 +42,7 @@ fun PathAwareIntervalInfo.evaluate(
         literal != null -> IntervalLattice.fromLiteral(literal)
 
         property != null -> {
-            val refinement = refineProperty(property, context, reporter)
+            val refinement = refineProperty(property, ctx)
             val symbol = property.calleeReference.toResolvedPropertySymbol()
             val variable = symbol?.let { retrieve(it) }
             when {
@@ -59,8 +56,8 @@ fun PathAwareIntervalInfo.evaluate(
         expression is FirFunctionCall -> {
             val left = expression.dispatchReceiver ?: return null
             val right = expression.arguments.singleOrNull() ?: return null
-            val leftInterval = evaluate(left, context, reporter, messageCollector) ?: return null
-            val rightInterval = evaluate(right, context, reporter, messageCollector) ?: return null
+            val leftInterval = evaluate(left, ctx) ?: return null
+            val rightInterval = evaluate(right, ctx) ?: return null
             val symbol = expression.calleeReference.toResolvedNamedFunctionSymbol() ?: return null
             when (symbol.callableId) {
                 PLUS_CALLABLE_ID -> leftInterval + rightInterval

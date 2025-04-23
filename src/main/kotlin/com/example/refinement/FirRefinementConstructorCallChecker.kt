@@ -80,9 +80,7 @@ class FirRefinementConstructorCallChecker(
             expr.takeIf { param.symbol == info.parameter }
         }.singleOrNull() ?: return failed()
 
-        val interval = analysisInfo.evaluate(
-            paramExpr, context, reporter, messageCollector
-        )?.toRefinement() ?: return failed()
+        val interval = analysisInfo.evaluate(paramExpr, visitor.ctx)?.toRefinement() ?: return failed()
         if (interval == info.refinement) {
             reporter.reportOn(expression.source, DEDUCED_CORRECTNESS, context)
         } else {
