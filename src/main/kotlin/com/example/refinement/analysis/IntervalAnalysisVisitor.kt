@@ -4,9 +4,11 @@ import com.example.refinement.models.IntervalLattice
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowGraphVisitor
+import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.resolve.dfa.DataFlowVariable
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.CFGNode
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.LoopBlockEnterNode
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.VariableAssignmentNode
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.VariableDeclarationNode
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.WhenBranchResultEnterNode
@@ -64,6 +66,16 @@ class IntervalAnalysisVisitor(
         data: PathAwareIntervalInfo
     ): PathAwareIntervalInfo {
         val data = visitNode(node, data)
+        val interpretation = interpretCondition(node.fir.condition, ctx)
+        return data.updateAll(interpretation)
+    }
+
+    override fun visitLoopBlockEnterNode(
+        node: LoopBlockEnterNode,
+        data: PathAwareIntervalInfo
+    ): PathAwareIntervalInfo {
+        val data = visitNode(node, data)
+        // TODO: support `for (i in 0 .. 10)` which seems much harder
         val interpretation = interpretCondition(node.fir.condition, ctx)
         return data.updateAll(interpretation)
     }
