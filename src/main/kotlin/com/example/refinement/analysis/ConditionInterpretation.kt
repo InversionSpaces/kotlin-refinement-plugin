@@ -14,24 +14,29 @@ fun <T> interpretComparison(
     val left = comparison.compareToCall.dispatchReceiver ?: return null
     val right = comparison.compareToCall.argument
 
-    val leftWrapped = wrap(left)
+    val leftVariable = wrap(left)
     val rightVariable = wrap(right)
-
-    val interval = when (comparison.operation) {
-        FirOperation.EQ -> IntervalRefinement.ZERO
-        FirOperation.GT -> IntervalRefinement.POSITIVE
-        FirOperation.LT -> IntervalRefinement.NEGATIVE
-        else -> null
-    }
+    val leftLiteral = left.literalIntValue
+    val rightLiteral = right.literalIntValue
 
     return when {
-        right.literalIntValue == 0L && leftWrapped != null -> {
-            interval?.let { leftWrapped to it }
-        }
+        leftLiteral != null && rightVariable != null -> when (comparison.operation) {
+            FirOperation.EQ -> IntervalRefinement.exact(leftLiteral)
+            FirOperation.GT_EQ -> IntervalRefinement.boundedBelow(leftLiteral)
+            FirOperation.LT_EQ -> IntervalRefinement.boundedAbove(leftLiteral)
+            FirOperation.GT -> IntervalRefinement.boundedAbove(leftLiteral, including = false)
+            FirOperation.LT -> IntervalRefinement.boundedBelow(leftLiteral, including = false)
+            else -> null
+        }?.let { rightVariable to it }
 
-        left.literalIntValue == 0L && rightVariable != null -> {
-            interval?.let { rightVariable to -it }
-        }
+        rightLiteral != null && leftVariable != null -> when (comparison.operation) {
+            FirOperation.EQ -> IntervalRefinement.exact(rightLiteral)
+            FirOperation.GT_EQ -> IntervalRefinement.boundedAbove(rightLiteral)
+            FirOperation.LT_EQ -> IntervalRefinement.boundedBelow(rightLiteral)
+            FirOperation.GT -> IntervalRefinement.boundedBelow(rightLiteral, including = false)
+            FirOperation.LT -> IntervalRefinement.boundedAbove(rightLiteral, including = false)
+            else -> null
+        }?.let { leftVariable to it }
 
         else -> null
     }

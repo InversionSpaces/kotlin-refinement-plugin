@@ -1,5 +1,6 @@
 package com.example.refinement
 
+import com.example.refinement.RefinementDiagnostics.DEBUG_INFO
 import com.example.refinement.RefinementDiagnostics.DEDUCED_CORRECTNESS
 import com.example.refinement.RefinementDiagnostics.DEDUCED_INCORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_DEDUCE_CORRECTNESS
@@ -8,6 +9,7 @@ import com.example.refinement.analysis.IntervalAnalysisVisitor
 import com.example.refinement.analysis.evaluate
 import com.example.refinement.fir.ParameterRefinement
 import com.example.refinement.fir.getRefinementClassInfo
+import com.example.refinement.models.IntervalLattice
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -57,11 +59,17 @@ class FirRefinementConstructorCallChecker(
             expr.takeIf { param.symbol == info.parameter }
         }.singleOrNull() ?: return failed()
 
-        val interval = analysisInfo.evaluate(paramExpr, visitor.ctx)?.toRefinement() ?: return failed()
-        if (interval == info.refinement) {
+        val interval = analysisInfo.evaluate(paramExpr, visitor.ctx) ?: return failed()
+        val expected = info.refinement.toLattice()
+
+        reporter.reportOn(expression.source, DEBUG_INFO, "Interval: $interval", context)
+
+        if (interval.isLessOrEqualTo(expected)) {
             reporter.reportOn(expression.source, DEDUCED_CORRECTNESS, context)
-        } else {
+        } else if (IntervalLattice.meet(interval, expected).isUndefined()) {
             reporter.reportOn(expression.source, DEDUCED_INCORRECTNESS, context)
+        } else {
+            reporter.reportOn(expression.source, FAILED_TO_DEDUCE_CORRECTNESS, context)
         }
     }
 }

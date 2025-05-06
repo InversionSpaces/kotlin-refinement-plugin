@@ -10,10 +10,8 @@ import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
-import org.jetbrains.kotlin.fir.references.toResolvedPropertySymbol
 import org.jetbrains.kotlin.fir.resolve.dfa.DataFlowVariable
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
 import org.jetbrains.kotlin.fir.types.resolvedType
 
 typealias IntervalInfo = ControlFlowInfo<DataFlowVariable, IntervalLattice>
@@ -38,7 +36,7 @@ fun PathAwareIntervalInfo.evaluate(
     val literal = expression.literalIntValue
     val property = expression.propertyAccess
     return when {
-        literal != null -> IntervalLattice.fromLiteral(literal)
+        literal != null -> IntervalLattice.exact(literal)
 
         property != null -> {
             val refinement = refineProperty(property, ctx)
@@ -87,7 +85,7 @@ fun PathAwareIntervalInfo.updateAll(
 
 fun PathAwareIntervalInfo.retrieve(
     variable: DataFlowVariable
-): IntervalLattice {
+): IntervalLattice? {
     val intervals = mapNotNull { (_, info) -> (info as IntervalInfo)[variable] as IntervalLattice? }
-    return intervals.fold(IntervalLattice.UNDEFINED, IntervalLattice::join)
+    return intervals.reduceOrNull(IntervalLattice::join)
 }

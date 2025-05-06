@@ -4,14 +4,9 @@ import com.example.refinement.models.IntervalLattice
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowGraphVisitor
-import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.resolve.dfa.DataFlowVariable
-import org.jetbrains.kotlin.fir.resolve.dfa.cfg.CFGNode
-import org.jetbrains.kotlin.fir.resolve.dfa.cfg.LoopBlockEnterNode
-import org.jetbrains.kotlin.fir.resolve.dfa.cfg.VariableAssignmentNode
-import org.jetbrains.kotlin.fir.resolve.dfa.cfg.VariableDeclarationNode
-import org.jetbrains.kotlin.fir.resolve.dfa.cfg.WhenBranchResultEnterNode
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.*
 import org.jetbrains.kotlin.fir.types.isInt
 import org.jetbrains.kotlin.fir.types.resolvedType
 
@@ -46,7 +41,7 @@ class IntervalAnalysisVisitor(
         val variable = ctx.createLocalVariable(node.fir.symbol)
         val interval = node.fir.initializer?.let {
             data.evaluate(it, ctx)
-        } ?: IntervalLattice.UNKNOWN
+        } ?: IntervalLattice.unbounded
         return data.update(variable, interval)
     }
 
@@ -57,7 +52,7 @@ class IntervalAnalysisVisitor(
         val data = visitNode(node, data)
         if (!node.fir.lValue.resolvedType.isInt) return data
         val variable = ctx.getVariable(node.fir.lValue) ?: return data
-        val interval = data.evaluate(node.fir.rValue, ctx) ?: IntervalLattice.UNKNOWN
+        val interval = data.evaluate(node.fir.rValue, ctx) ?: IntervalLattice.unbounded
         return data.update(variable, interval)
     }
 
