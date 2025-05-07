@@ -56,7 +56,7 @@ fun interpretCondition(
         val left = interpretCondition(condition.leftOperand, ctx)
         val right = interpretCondition(condition.rightOperand, ctx)
         left.mapValuesTo(right.toMutableMap()) { (symbol, interval) ->
-            right[symbol]?.let { IntervalLattice.join(interval, it) } ?: interval
+            right[symbol]?.let { IntervalLattice.meet(interval, it) } ?: interval
         }
     } else emptyMap()
 

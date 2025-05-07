@@ -42,7 +42,7 @@ class IntervalAnalysisVisitor(
         val interval = node.fir.initializer?.let {
             data.evaluate(it, ctx)
         } ?: IntervalLattice.unbounded
-        return data.update(variable, interval)
+        return data.setInterval(variable, interval)
     }
 
     override fun visitVariableAssignmentNode(
@@ -53,7 +53,7 @@ class IntervalAnalysisVisitor(
         if (!node.fir.lValue.resolvedType.isInt) return data
         val variable = ctx.getVariable(node.fir.lValue) ?: return data
         val interval = data.evaluate(node.fir.rValue, ctx) ?: IntervalLattice.unbounded
-        return data.update(variable, interval)
+        return data.setInterval(variable, interval)
     }
 
     override fun visitWhenBranchResultEnterNode(
@@ -62,7 +62,7 @@ class IntervalAnalysisVisitor(
     ): PathAwareIntervalInfo {
         val data = visitNode(node, data)
         val interpretation = interpretCondition(node.fir.condition, ctx)
-        return data.updateAll(interpretation)
+        return data.constrainIntervals(interpretation)
     }
 
     override fun visitLoopBlockEnterNode(
@@ -72,6 +72,6 @@ class IntervalAnalysisVisitor(
         val data = visitNode(node, data)
         // TODO: support `for (i in 0 .. 10)` which seems much harder
         val interpretation = interpretCondition(node.fir.condition, ctx)
-        return data.updateAll(interpretation)
+        return data.constrainIntervals(interpretation)
     }
 }

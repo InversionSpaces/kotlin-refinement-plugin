@@ -5,6 +5,7 @@ import com.example.refinement.fold
 import com.example.refinement.models.IntervalLattice
 import org.jetbrains.kotlin.fir.analysis.cfa.util.ControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
+import org.jetbrains.kotlin.fir.analysis.cfa.util.merge
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
@@ -62,7 +63,7 @@ fun PathAwareIntervalInfo.evaluate(
     }
 }
 
-fun PathAwareIntervalInfo.update(
+fun PathAwareIntervalInfo.setInterval(
     variable: DataFlowVariable,
     interval: IntervalLattice
 ): PathAwareIntervalInfo {
@@ -73,19 +74,22 @@ fun PathAwareIntervalInfo.update(
     return b.build()
 }
 
-fun PathAwareIntervalInfo.updateAll(
+fun PathAwareIntervalInfo.constrainIntervals(
     intervals: Map<out DataFlowVariable, IntervalLattice>
 ): PathAwareIntervalInfo {
     val b = builder()
-    b.mapValuesTo(b) {
-        it.value.putAll(intervals)
+    b.mapValuesTo(b) { (_, info) ->
+        val bi = info.builder()
+        intervals.forEach { (v, i) ->
+            bi.merge(v, i, IntervalLattice::meet)
+        }
+        bi.build()
     }
     return b.build()
 }
 
 fun PathAwareIntervalInfo.retrieve(
     variable: DataFlowVariable
-): IntervalLattice? {
-    val intervals = mapNotNull { (_, info) -> (info as IntervalInfo)[variable] as IntervalLattice? }
-    return intervals.reduceOrNull(IntervalLattice::join)
-}
+): IntervalLattice? = values
+    .mapNotNull { (it as IntervalInfo)[variable] as IntervalLattice? }
+    .reduceOrNull(IntervalLattice::join)
