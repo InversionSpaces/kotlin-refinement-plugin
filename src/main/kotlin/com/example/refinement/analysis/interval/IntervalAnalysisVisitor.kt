@@ -1,14 +1,20 @@
-package com.example.refinement.analysis
+package com.example.refinement.analysis.interval
 
+import com.example.refinement.analysis.AnalysisContext
 import com.example.refinement.models.IntervalLattice
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowGraphVisitor
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.resolve.dfa.DataFlowVariable
-import org.jetbrains.kotlin.fir.resolve.dfa.cfg.*
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.CFGNode
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.LoopBlockEnterNode
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.VariableAssignmentNode
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.VariableDeclarationNode
+import org.jetbrains.kotlin.fir.resolve.dfa.cfg.WhenBranchResultEnterNode
 import org.jetbrains.kotlin.fir.types.isInt
 import org.jetbrains.kotlin.fir.types.resolvedType
+import kotlin.collections.iterator
 
 class IntervalAnalysisVisitor(
     context: CheckerContext,
@@ -26,7 +32,7 @@ class IntervalAnalysisVisitor(
         val builder = b.builder()
         for ((variable, interval) in a) {
             builder.merge(variable as DataFlowVariable, interval as IntervalLattice) { l, r ->
-                IntervalLattice.join(l, r)
+                IntervalLattice.Companion.join(l, r)
             }
         }
         return builder.build()
@@ -41,7 +47,7 @@ class IntervalAnalysisVisitor(
         val variable = ctx.createLocalVariable(node.fir.symbol)
         val interval = node.fir.initializer?.let {
             data.evaluate(it, ctx)
-        } ?: IntervalLattice.unbounded
+        } ?: IntervalLattice.Companion.unbounded
         return data.setInterval(variable, interval)
     }
 
@@ -52,7 +58,7 @@ class IntervalAnalysisVisitor(
         val data = visitNode(node, data)
         if (!node.fir.lValue.resolvedType.isInt) return data
         val variable = ctx.getVariable(node.fir.lValue) ?: return data
-        val interval = data.evaluate(node.fir.rValue, ctx) ?: IntervalLattice.unbounded
+        val interval = data.evaluate(node.fir.rValue, ctx) ?: IntervalLattice.Companion.unbounded
         return data.setInterval(variable, interval)
     }
 

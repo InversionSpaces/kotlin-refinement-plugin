@@ -1,6 +1,8 @@
 package com.example.refinement.models
 
 import java.math.BigInteger
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 
 sealed interface InfInt : Comparable<InfInt> {
     data class Finite(val value: BigInteger) : InfInt {

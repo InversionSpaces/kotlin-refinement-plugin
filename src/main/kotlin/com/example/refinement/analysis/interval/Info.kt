@@ -1,11 +1,11 @@
-package com.example.refinement.analysis
+package com.example.refinement.analysis.interval
 
+import com.example.refinement.analysis.AnalysisContext
 import com.example.refinement.fir.*
 import com.example.refinement.fold
 import com.example.refinement.models.IntervalLattice
 import org.jetbrains.kotlin.fir.analysis.cfa.util.ControlFlowInfo
 import org.jetbrains.kotlin.fir.analysis.cfa.util.PathAwareControlFlowInfo
-import org.jetbrains.kotlin.fir.analysis.cfa.util.merge
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression

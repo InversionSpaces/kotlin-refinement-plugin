@@ -7,7 +7,7 @@ import com.example.refinement.RefinementDiagnostics.ONLY_VALUE_CLASSES_ARE_SUPPO
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_MULTIPLE_REQUIRE_CALLS
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_PREDICATE
 import com.example.refinement.RefinementDiagnostics.UNSUPPORTED_TYPE
-import com.example.refinement.analysis.interpretComparison
+import com.example.refinement.analysis.interval.interpretComparison
 import com.example.refinement.refinementPredicateMatcher
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn

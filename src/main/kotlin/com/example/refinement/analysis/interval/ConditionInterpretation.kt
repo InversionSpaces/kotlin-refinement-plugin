@@ -1,5 +1,6 @@
-package com.example.refinement.analysis
+package com.example.refinement.analysis.interval
 
+import com.example.refinement.analysis.AnalysisContext
 import com.example.refinement.fir.literalIntValue
 import com.example.refinement.models.IntervalLattice
 import com.example.refinement.models.IntervalRefinement

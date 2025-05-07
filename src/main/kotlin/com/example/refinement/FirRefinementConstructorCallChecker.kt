@@ -5,8 +5,10 @@ import com.example.refinement.RefinementDiagnostics.DEDUCED_CORRECTNESS
 import com.example.refinement.RefinementDiagnostics.DEDUCED_INCORRECTNESS
 import com.example.refinement.RefinementDiagnostics.FAILED_TO_DEDUCE_CORRECTNESS
 import com.example.refinement.RefinementDiagnostics.NO_PRIMARY_CONSTRUCTOR_FOUND
-import com.example.refinement.analysis.IntervalAnalysisVisitor
-import com.example.refinement.analysis.evaluate
+import com.example.refinement.analysis.interval.IntervalAnalysisVisitor
+import com.example.refinement.analysis.interval.IntervalWidening
+import com.example.refinement.analysis.interval.evaluate
+import com.example.refinement.analysis.performCDFA
 import com.example.refinement.fir.ParameterRefinement
 import com.example.refinement.fir.getRefinementClassInfo
 import com.example.refinement.models.IntervalLattice
@@ -51,7 +53,8 @@ class FirRefinementConstructorCallChecker(
             it.controlFlowGraphReference?.controlFlowGraph != null
         }?.controlFlowGraphReference?.controlFlowGraph ?: return failed()
         val visitor = IntervalAnalysisVisitor(context, reporter, messageCollector)
-        val analysis = cfg.traverseToFixedPoint(visitor)
+        val widening = IntervalWidening()
+        val analysis = cfg.performCDFA(visitor, widening)
         val analysisInfo = analysis.mapKeys { (it, _) -> it.fir }[expression] ?: return failed()
 
         val args = expression.argumentList as? FirResolvedArgumentList ?: return failed()
